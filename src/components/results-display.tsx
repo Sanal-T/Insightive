@@ -40,9 +40,11 @@ function getRepoName(url: string) {
 }
 
 export function ResultsDisplay({ repositories, papers, datasets }: ResultsDisplayProps) {
+  const defaultTab = repositories.length > 0 ? "repositories" : (papers.length > 0 ? "papers" : "datasets");
+
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <Tabs defaultValue="repositories" className="w-full">
+      <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-gray-200/50 dark:bg-gray-800/50">
           <TabsTrigger value="repositories" className="flex items-center gap-2" disabled={repositories.length === 0}>
             <Icons.GitHub />

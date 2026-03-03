@@ -28,6 +28,7 @@ import {
   Github,
   Database,
   BookOpen,
+  History,
 } from 'lucide-react';
 import { Icons } from '@/components/icons';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -79,10 +80,12 @@ export default function RootLayout({
                 <SidebarGroup>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <SidebarMenuButton>
-                        <Plus />
-                        New Chat
-                      </SidebarMenuButton>
+                      <Link href="/">
+                        <SidebarMenuButton>
+                          <Plus />
+                          New Chat
+                        </SidebarMenuButton>
+                      </Link>
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroup>
@@ -141,8 +144,15 @@ export default function RootLayout({
                 </SidebarGroup>
               </SidebarContent>
               <SidebarFooter>
-                <HistoryList />
                 <SidebarMenu>
+                  <SidebarMenuItem>
+                    <Link href="/history">
+                      <SidebarMenuButton>
+                        <History />
+                        History
+                      </SidebarMenuButton>
+                    </Link>
+                  </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton>
                       <LifeBuoy />

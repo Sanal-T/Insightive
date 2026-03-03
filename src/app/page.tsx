@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useActionState, useRef } from 'react';
+import { useEffect, useActionState, useRef, Suspense } from 'react';
 import { search, type GeneralSearchState } from '@/app/actions';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from '@/components/submit-button';
@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useChatHistory } from '@/hooks/use-chat-history';
+import { useSearchParams } from 'next/navigation';
 
 const initialState: GeneralSearchState = {
   repositories: [],
@@ -19,16 +20,32 @@ const initialState: GeneralSearchState = {
   errors: [],
 };
 
-export default function InsightivePage() {
+function InsightiveContent() {
   const [state, formAction] = useActionState(search, initialState);
   const { toast } = useToast();
   const { saveChat } = useChatHistory();
+  const searchParams = useSearchParams();
+  const formRef = useRef<HTMLFormElement>(null);
   const lastTopicRef = useRef<string>('');
+  const initialTopicSet = useRef(false);
+
+  useEffect(() => {
+    const topicParam = searchParams.get('topic');
+    if (topicParam && !initialTopicSet.current && formRef.current) {
+      initialTopicSet.current = true;
+      const textarea = formRef.current.querySelector('textarea');
+      if (textarea) {
+        textarea.value = topicParam;
+        lastTopicRef.current = topicParam;
+        formRef.current.requestSubmit();
+      }
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (state.message === 'Search complete.' && lastTopicRef.current) {
       saveChat(lastTopicRef.current);
-      lastTopicRef.current = ''; // Reset after saving
+      lastTopicRef.current = '';
     }
     if (state.message && !['Search complete.', 'No results found. Try a different topic.'].includes(state.message)) {
       toast({
@@ -46,7 +63,7 @@ export default function InsightivePage() {
         });
       });
     }
-  }, [state.message, state.errors, toast]);
+  }, [state.message, state.errors, toast, saveChat]);
 
   const hasResults = state.repositories.length > 0 || state.papers.length > 0 || state.datasets.length > 0;
 
@@ -64,6 +81,7 @@ export default function InsightivePage() {
 
       <div className="w-full max-w-3xl rounded-xl bg-card border shadow-lg p-2 mb-12">
         <form
+          ref={formRef}
           action={(formData) => {
             const topic = formData.get('topic') as string;
             if (topic) lastTopicRef.current = topic;
@@ -112,5 +130,13 @@ export default function InsightivePage() {
         />
       )}
     </main>
+  );
+}
+
+export default function InsightivePage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <InsightiveContent />
+    </Suspense>
   );
 }
