@@ -1,0 +1,17 @@
+Starting Diagnostics...
+CWD: D:\Insightive
+GOOGLE_GENAI_API_KEY is MISSING!
+Creating prompt...
+Running prompt...
+Genkit Error Stack: Error: Failed to fetch from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at makeRequest (D:\Insightive\node_modules\@genkit-ai\google-genai\src\googleai\client.ts:362:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async generateContent (D:\Insightive\node_modules\@genkit-ai\google-genai\src\googleai\client.ts:92:20)
+    at async callGemini (D:\Insightive\node_modules\@genkit-ai\google-genai\src\googleai\gemini.ts:623:22)
+    at async <anonymous> (D:\Insightive\node_modules\@genkit-ai\google-genai\src\googleai\gemini.ts:686:11)
+    at async <anonymous> (D:\Insightive\node_modules\@genkit-ai\core\src\action.ts:475:12)
+    at async <anonymous> (D:\Insightive\node_modules\@genkit-ai\core\src\action.ts:369:26)
+    at async <anonymous> (D:\Insightive\node_modules\@genkit-ai\core\src\tracing\instrumentation.ts:121:24)
+    at async runInNewSpan (D:\Insightive\node_modules\@genkit-ai\core\src\tracing\instrumentation.ts:105:10)
+    at async AsyncFunction.actionFn.run (D:\Insightive\node_modules\@genkit-ai\core\src\action.ts:321:18)
+Genkit Error Message: Failed to fetch from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
