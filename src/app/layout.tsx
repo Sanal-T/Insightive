@@ -27,12 +27,10 @@ import {
   LifeBuoy,
   Github,
   Database,
-  BookOpen,
-  History,
+  BookText,
 } from 'lucide-react';
 import { Icons } from '@/components/icons';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { HistoryList } from '@/components/history-list';
 
 export const metadata: Metadata = {
   title: 'Insightive',
@@ -80,12 +78,10 @@ export default function RootLayout({
                 <SidebarGroup>
                   <SidebarMenu>
                     <SidebarMenuItem>
-                      <Link href="/">
-                        <SidebarMenuButton>
-                          <Plus />
-                          New Chat
-                        </SidebarMenuButton>
-                      </Link>
+                      <SidebarMenuButton>
+                        <Plus />
+                        New Chat
+                      </SidebarMenuButton>
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroup>
@@ -115,28 +111,21 @@ export default function RootLayout({
                         </SidebarMenuButton>
                       </Link>
                     </SidebarMenuItem>
-
                     <SidebarMenuItem>
-                      <Link href="/summarization">
+                      <Link href="/literature-review">
                         <SidebarMenuButton>
-                          <BookOpen />
-                          Summarization
+                          <BookText />
+                          Literature Review
                         </SidebarMenuButton>
                       </Link>
                     </SidebarMenuItem>
+
+
                     <SidebarMenuItem>
                       <Link href="/related-papers">
                         <SidebarMenuButton>
                           <FileText />
                           Related Papers
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                    <SidebarMenuItem>
-                      <Link href="/literature-review">
-                        <SidebarMenuButton>
-                          <FileText />
-                          Literature Review
                         </SidebarMenuButton>
                       </Link>
                     </SidebarMenuItem>
@@ -146,12 +135,10 @@ export default function RootLayout({
               <SidebarFooter>
                 <SidebarMenu>
                   <SidebarMenuItem>
-                    <Link href="/history">
-                      <SidebarMenuButton>
-                        <History />
-                        History
-                      </SidebarMenuButton>
-                    </Link>
+                    <SidebarMenuButton>
+                      <Library />
+                      My Library
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                   <SidebarMenuItem>
                     <SidebarMenuButton>

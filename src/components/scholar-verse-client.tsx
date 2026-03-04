@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useActionState } from 'react';
-import { search, type SearchState } from '@/app/actions';
+import { useEffect, useActionState, useState } from 'react';
+import { search, type GeneralSearchState } from '@/app/actions';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from '@/components/submit-button';
 import { ResultsDisplay } from '@/components/results-display';
 import { useToast } from '@/hooks/use-toast';
-import { Icons } from '@/components/icons';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 
-const initialState: SearchState = {
+const initialState: GeneralSearchState = {
   repositories: [],
   papers: [],
   datasets: [],
@@ -21,6 +20,7 @@ const initialState: SearchState = {
 
 export function InsightiveClient() {
   const [state, formAction] = useActionState(search, initialState);
+  const [query, setQuery] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -47,34 +47,36 @@ export function InsightiveClient() {
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center -mt-24 px-4">
       <div className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold font-headline text-foreground tracking-tight">
-              Leveraging Agentic AI and LLMs for <br/> Intelligent Academic Discovery and Analysis
-          </h1>
-          <p className="text-lg sm:text-xl text-muted-foreground mt-4 max-w-3xl mx-auto">
-              Write a research task or choose one below and Insightive Agent will use the best
-              AI Models, Tools and Data to complete it for you.
-          </p>
+        <h1 className="text-4xl sm:text-5xl font-bold font-headline text-foreground tracking-tight">
+          Leveraging Agentic AI and LLMs for <br /> Intelligent Academic Discovery and Analysis
+        </h1>
+        <p className="text-lg sm:text-xl text-muted-foreground mt-4 max-w-3xl mx-auto">
+          Write a research task or choose one below and Insightive Agent will use the best
+          AI Models, Tools and Data to complete it for you.
+        </p>
       </div>
 
       <div className="w-full max-w-3xl rounded-xl bg-card border shadow-lg p-2 mb-12">
-          <form action={formAction} className="relative">
-            <Textarea
-              name="topic"
-              placeholder="Give me any task to work on..."
-              className="min-h-[120px] text-base bg-transparent border-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
-              required
-            />
-            <div className="absolute bottom-3 left-3 flex items-center gap-2">
-                <Button variant="outline" size="sm">
-                    <Plus className="h-4 w-4" />
-                </Button>
-            </div>
-            <div className="absolute bottom-3 right-3">
-              <SubmitButton />
-            </div>
-          </form>
+        <form action={formAction} className="relative">
+          <Textarea
+            name="topic"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Give me any task to work on..."
+            className="min-h-[120px] text-base bg-transparent border-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
+            required
+          />
+          <div className="absolute bottom-3 left-3 flex items-center gap-2">
+            <Button variant="outline" size="sm">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="absolute bottom-3 right-3">
+            <SubmitButton />
+          </div>
+        </form>
       </div>
-      
+
       {state.errors && state.errors.length > 0 && (
         <Alert variant="destructive" className="mt-8 max-w-3xl">
           <AlertDescription>

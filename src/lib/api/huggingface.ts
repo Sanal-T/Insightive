@@ -1,26 +1,37 @@
-export async function searchHuggingFaceDatasets(query: string) {
-    const apiKey = process.env.HUGGINGFACE_API_KEY;
+import type { Dataset } from '@/lib/dataset-service';
 
-    if (!apiKey) {
-        console.warn("Hugging Face API key not found in environment variables.");
-        return [];
-    }
-
+/**
+ * Hugging Face Datasets API
+ * Public API — no authentication required for public datasets.
+ * Docs: https://huggingface.co/docs/hub/api
+ */
+export async function searchHuggingFaceDatasets(query: string): Promise<Dataset[]> {
     try {
-        const response = await fetch(`https://huggingface.co/api/datasets?search=${encodeURIComponent(query)}&limit=10`, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`
-            }
+        const url = `https://huggingface.co/api/datasets?search=${encodeURIComponent(query)}&limit=5&sort=downloads&direction=-1`;
+        console.log(`[HuggingFace] Fetching datasets for: "${query}"`);
+
+        const response = await fetch(url, {
+            headers: { Accept: 'application/json' },
         });
 
         if (!response.ok) {
-            throw new Error(`Hugging Face API error: ${response.statusText}`);
+            console.error(`[HuggingFace] API Error (${response.status})`);
+            return [];
         }
 
         const data = await response.json();
-        return data;
+        if (!Array.isArray(data)) return [];
+
+        console.log(`[HuggingFace] Found ${data.length} datasets`);
+
+        return data.map((item: any) => ({
+            name: item.id || item.modelId || 'Unknown',
+            source: 'Hugging Face',
+            url: `https://huggingface.co/datasets/${item.id}`,
+            description: item.description || item.cardData?.summary || `A dataset by ${item.author || 'the community'} on Hugging Face.`,
+        }));
     } catch (error) {
-        console.error("Failed to fetch from Hugging Face:", error);
+        console.error('[HuggingFace] Fetch error:', error);
         return [];
     }
 }

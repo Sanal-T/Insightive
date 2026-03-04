@@ -7,7 +7,7 @@ const content = fs.readFileSync(envPath, 'utf8');
 
 console.log("--- .env Analysis ---");
 const lines = content.split(/\r?\n/);
-lines.forEach((line, i) => {
+lines.forEach((line: string, i: number) => {
     if (line.startsWith('GOOGLE_GENAI_API_KEY=')) {
         const val = line.split('=')[1];
         console.log(`Line ${i}: GOOGLE_GENAI_API_KEY found.`);
@@ -23,3 +23,5 @@ lines.forEach((line, i) => {
     }
 });
 console.log("--- End Analysis ---");
+
+export { };

@@ -1,22 +1,18 @@
 'use server';
 
 /**
- * @fileOverview Suggests relevant code repositories based on a research idea.
- *
- * - suggestRepositories - A function that suggests code repositories.
- * - SuggestRepositoriesInput - The input type for the suggestRepositories function.
- * - SuggestRepositoriesOutput - The return type for the suggestRepositories function.
+ * @fileOverview Suggests relevant code repositories based on a research idea,
+ * fetching from GitHub, GitLab, Bitbucket, Codeberg, and Launchpad in parallel.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { searchGithubRepositories, type GithubRepository } from '@/lib/api/github';
+import { findRepositories } from '@/lib/repository-service';
+import type { Repository } from '@/lib/types';
 
-// Input/Output Types
 export type SuggestRepositoriesInput = string;
-export type SuggestRepositoriesOutput = GithubRepository[];
+export type SuggestRepositoriesOutput = Repository[];
 
-// Schema for the AI optimization step
 const QueryOptimizerInputSchema = z.object({
   userIntent: z.string(),
 });
@@ -25,24 +21,22 @@ const QueryOptimizerOutputSchema = z.object({
   explanation: z.string().optional(),
 });
 
-// Prompt Definition
 const optimizeQueryPrompt = ai.definePrompt({
   name: 'optimizeRepositoryQuery',
   input: { schema: QueryOptimizerInputSchema },
   output: { schema: QueryOptimizerOutputSchema },
-  prompt: `You are a GitHub Search Expert. Your goal is to convert a user's natural language research idea into a highly effective GitHub search query.
+  prompt: `You are a multi-platform code repository search expert. Your goal is to convert a user's natural language research idea into a highly effective search query that works well across GitHub, GitLab, Bitbucket, Codeberg, and Launchpad.
 
 User Intent: {{userIntent}}
 
 Instructions:
 1. Analyze the user's intent to identify key technologies, topics, and domain.
-2. Construct a specialized GitHub search query string.
-3. Use modifiers where appropriate (e.g., \`language:typescript\`, \`topic:machine-learning\`, \`stars:>100\`).
-4. Keep the query concise but specific.
+2. Construct a concise but specific search query string (without platform-specific modifiers like "language:typescript" since results span multiple platforms).
+3. Focus on the core topic keywords that will return relevant repositories across all platforms.
 
 Example:
-Input: "stock portfolio app"
-Output: "stock portfolio manager language:typescript topic:finance"
+Input: "stock portfolio app using typescript"
+Output: "stock portfolio manager typescript finance"
 
 Return the optimized query string.
 `,
@@ -52,25 +46,23 @@ export async function suggestRepositories(input: SuggestRepositoriesInput): Prom
   try {
     console.log(`[suggestRepositories] Original Input: "${input}"`);
 
-    // 1. Optimize Query with AI
+    // 1. Optimize query with AI
     let finalQuery = input;
     try {
       const { output } = await optimizeQueryPrompt({ userIntent: input });
-      if (output && output.optimizedQuery) {
+      if (output?.optimizedQuery) {
         finalQuery = output.optimizedQuery;
         console.log(`[suggestRepositories] AI Optimized Query: "${finalQuery}"`);
       }
     } catch (aiError) {
-      console.warn('[suggestRepositories] AI Optimization failed, falling back to original input.', aiError);
+      console.warn('[suggestRepositories] AI Optimization failed, using original input.', aiError);
     }
 
-    // 2. Search GitHub with optimized query
-    const repos = await searchGithubRepositories(finalQuery);
+    // 2. Fan out to all platforms via repository-service
+    const repos = await findRepositories(finalQuery);
     return repos;
   } catch (error) {
     console.error('[suggestRepositories] Error:', error);
     return [];
   }
 }
-
-

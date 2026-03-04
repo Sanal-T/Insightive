@@ -2,17 +2,19 @@
 console.log("[DEBUG] Loading suggest-papers.ts");
 
 /**
- * @fileOverview Suggests relevant academic papers based on a research idea.
- *
- * - suggestPapers - A function that suggests academic papers.
- * - SuggestPapersInput - The input type for the suggestPapers function.
- * - SuggestPapersOutput - The return type for the suggestPapers function.
+ * @fileOverview Suggests relevant academic papers from multiple sources:
+ * IEEE Xplore, Semantic Scholar, OpenAlex, Springer, Crossref, Apify, arXiv.
  */
 
 import { searchArxivPapers } from '@/lib/api/arxiv';
 import { searchCrossrefPapers } from '@/lib/api/crossref';
 import { searchSerpApiPapers } from '@/lib/api/serpapi';
 import { searchApifyPapers } from '@/lib/api/apify';
+import { searchIEEEPapers } from '@/lib/api/ieee';
+import { searchSemanticScholarPapers } from '@/lib/api/semantic-scholar';
+import { searchOpenAlexPapers } from '@/lib/api/openalex';
+import { searchSpringerPapers } from '@/lib/api/springer';
+import { searchElsevierPapers } from '@/lib/api/elsevier';
 import { type Paper } from '@/lib/types';
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
@@ -35,52 +37,62 @@ const prompt = ai.definePrompt({
   name: 'suggestPapersPrompt',
   input: { schema: SuggestPapersInputSchema },
   output: { schema: SuggestPapersOutputSchema },
-  prompt: `You are an expert AI research assistant. Your task is to find HIGHLY RELEVANT and CITABLE academic papers for a given research idea.
-Research Idea: {{{$input}}}
-Provide a list of 5 highly relevant academic papers from premier sources.
-Return a JSON array of paper objects.`,
+  prompt: `You are an expert AI research assistant. Your task is to find HIGHLY RELEVANT and CITABLE academic papers for a given research idea.\nResearch Idea: {{{$input}}}\nProvide a list of 5 highly relevant academic papers from premier sources.\nReturn a JSON array of paper objects.`,
 });
 
 export async function suggestPapers(input: SuggestPapersInput): Promise<SuggestPapersOutput> {
   try {
-    console.log(`[suggestPapers] Searching Multi-Source (arXiv, Crossref, SerpApi, Apify) for: "${input}"`);
+    console.log(`[suggestPapers] Searching all sources for: "${input}"`);
 
-    // We run all queries in parallel.
-    // Note: SerpApi and Apify both target Google Scholar. If both keys are present, we might get dupes.
-    // However, usually a user handles one. We will deduplicate by URL later if needed.
-    const [arxivResults, crossrefResults, serpResults, apifyResults] = await Promise.allSettled([
-      searchArxivPapers(input),
-      searchCrossrefPapers(input),
+    const [
+      ieeeResults,
+      springerResults,
+      serpResults,
+      apifyResults,
+      elsevierResults,
+      crossrefResults,
+      semanticResults,
+      openAlexResults,
+      arxivResults,
+    ] = await Promise.allSettled([
+      searchIEEEPapers(input),
+      searchSpringerPapers(input),
       searchSerpApiPapers(input),
-      searchApifyPapers(input)
+      searchApifyPapers(input),
+      searchElsevierPapers(input),
+      searchCrossrefPapers(input),
+      searchSemanticScholarPapers(input),
+      searchOpenAlexPapers(input),
+      searchArxivPapers(input),
     ]);
 
     const papers: Paper[] = [];
     const urls = new Set<string>();
 
-    const addPapers = (newPapers: Paper[], sourceName: string) => {
-      if (newPapers.length > 0) {
-        console.log(`[suggestPapers] Found ${newPapers.length} papers from ${sourceName}.`);
-        newPapers.forEach(p => {
-          if (!urls.has(p.url)) { // Basic deduplication
+    const addPapers = (result: PromiseSettledResult<Paper[]>, sourceName: string) => {
+      if (result.status === 'fulfilled' && result.value.length > 0) {
+        console.log(`[suggestPapers] Found ${result.value.length} papers from ${sourceName}.`);
+        result.value.forEach(p => {
+          if (p.url && !urls.has(p.url)) {
             papers.push(p);
             urls.add(p.url);
           }
         });
+      } else if (result.status === 'rejected') {
+        console.error(`[suggestPapers] ${sourceName} failed:`, result.reason);
       }
     };
 
-    if (arxivResults.status === 'fulfilled') addPapers(arxivResults.value, 'arXiv');
-    else console.error('[suggestPapers] arXiv Search Failed:', arxivResults.reason);
-
-    if (crossrefResults.status === 'fulfilled') addPapers(crossrefResults.value, 'Crossref');
-    else console.error('[suggestPapers] Crossref Search Failed:', crossrefResults.reason);
-
-    if (serpResults.status === 'fulfilled') addPapers(serpResults.value, 'Google Scholar (SerpApi)');
-    else console.error('[suggestPapers] SerpApi Search Failed:', serpResults.reason);
-
-    if (apifyResults.status === 'fulfilled') addPapers(apifyResults.value, 'Google Scholar (Apify)');
-    else console.error('[suggestPapers] Apify Search Failed:', apifyResults.reason);
+    // Priority order as specified by user
+    addPapers(ieeeResults, 'IEEE Xplore');          // 1. IEEE
+    addPapers(springerResults, 'Springer Nature');      // 2. Springer
+    addPapers(serpResults, 'Google Scholar (SerpApi)'); // 3. Google Scholar
+    addPapers(apifyResults, 'Google Scholar (Apify)');
+    addPapers(elsevierResults, 'Elsevier / Scopus');    // 4. Elsevier
+    addPapers(crossrefResults, 'Crossref');             // 5. rest...
+    addPapers(semanticResults, 'Semantic Scholar');
+    addPapers(openAlexResults, 'OpenAlex');
+    addPapers(arxivResults, 'arXiv');                // last — preprints
 
     if (papers.length > 0) {
       return papers;

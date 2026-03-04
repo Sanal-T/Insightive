@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useActionState, useRef, Suspense } from 'react';
+import { useEffect, useActionState } from 'react';
 import { search, type GeneralSearchState } from '@/app/actions';
 import { Textarea } from '@/components/ui/textarea';
 import { SubmitButton } from '@/components/submit-button';
@@ -9,8 +9,6 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { useChatHistory } from '@/hooks/use-chat-history';
-import { useSearchParams } from 'next/navigation';
 
 const initialState: GeneralSearchState = {
   repositories: [],
@@ -20,33 +18,11 @@ const initialState: GeneralSearchState = {
   errors: [],
 };
 
-function InsightiveContent() {
+export default function InsightivePage() {
   const [state, formAction] = useActionState(search, initialState);
   const { toast } = useToast();
-  const { saveChat } = useChatHistory();
-  const searchParams = useSearchParams();
-  const formRef = useRef<HTMLFormElement>(null);
-  const lastTopicRef = useRef<string>('');
-  const initialTopicSet = useRef(false);
 
   useEffect(() => {
-    const topicParam = searchParams.get('topic');
-    if (topicParam && !initialTopicSet.current && formRef.current) {
-      initialTopicSet.current = true;
-      const textarea = formRef.current.querySelector('textarea');
-      if (textarea) {
-        textarea.value = topicParam;
-        lastTopicRef.current = topicParam;
-        formRef.current.requestSubmit();
-      }
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    if (state.message === 'Search complete.' && lastTopicRef.current) {
-      saveChat(lastTopicRef.current);
-      lastTopicRef.current = '';
-    }
     if (state.message && !['Search complete.', 'No results found. Try a different topic.'].includes(state.message)) {
       toast({
         title: 'Error',
@@ -63,49 +39,41 @@ function InsightiveContent() {
         });
       });
     }
-  }, [state.message, state.errors, toast, saveChat]);
+  }, [state.message, state.errors, toast]);
 
   const hasResults = state.repositories.length > 0 || state.papers.length > 0 || state.datasets.length > 0;
 
   return (
     <main className="w-full flex-1 flex flex-col items-center justify-center px-4 py-12">
       <div className="text-center mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold font-headline text-foreground tracking-tight">
-          Leveraging Agentic AI and LLMs for <br /> Intelligent Academic Discovery and Analysis
-        </h1>
-        <p className="text-md sm:text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
-          Write a research task or choose one below and Insightive Agent will use the best
-          AI Models, Tools and Data to complete it for you.
-        </p>
+          <h1 className="text-3xl sm:text-4xl font-bold font-headline text-foreground tracking-tight">
+              Leveraging Agentic AI and LLMs for <br/> Intelligent Academic Discovery and Analysis
+          </h1>
+          <p className="text-md sm:text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
+              Write a research task or choose one below and Insightive Agent will use the best
+              AI Models, Tools and Data to complete it for you.
+          </p>
       </div>
 
       <div className="w-full max-w-3xl rounded-xl bg-card border shadow-lg p-2 mb-12">
-        <form
-          ref={formRef}
-          action={(formData) => {
-            const topic = formData.get('topic') as string;
-            if (topic) lastTopicRef.current = topic;
-            formAction(formData);
-          }}
-          className="relative"
-        >
-          <Textarea
-            name="topic"
-            placeholder="Give me any task to work on..."
-            className="min-h-[120px] text-base bg-transparent border-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
-            required
-          />
-          <div className="absolute bottom-3 left-3 flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="absolute bottom-3 right-3">
-            <SubmitButton />
-          </div>
-        </form>
+          <form action={formAction} className="relative">
+            <Textarea
+              name="topic"
+              placeholder="Give me any task to work on..."
+              className="min-h-[120px] text-base bg-transparent border-0 ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0 pr-12"
+              required
+            />
+            <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4" />
+                </Button>
+            </div>
+            <div className="absolute bottom-3 right-3">
+              <SubmitButton />
+            </div>
+          </form>
       </div>
-
+      
       {state.errors && state.errors.length > 0 && (
         <Alert variant="destructive" className="mt-8 max-w-3xl">
           <AlertDescription>
@@ -130,13 +98,5 @@ function InsightiveContent() {
         />
       )}
     </main>
-  );
-}
-
-export default function InsightivePage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <InsightiveContent />
-    </Suspense>
   );
 }

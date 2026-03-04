@@ -36,7 +36,7 @@ export default function DatasetFinderPage() {
           Dataset Finder
         </h1>
         <p className="text-md sm:text-lg text-muted-foreground mt-4 max-w-3xl mx-auto">
-          Search for datasets from Kaggle and other public sources.
+          Search for datasets from <strong>Kaggle</strong>, <strong>Hugging Face</strong>, <strong>UCI ML Repository</strong>, and AI-curated suggestions — all in one place.
         </p>
       </div>
 
