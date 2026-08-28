@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 const envPath = path.resolve(process.cwd(), '.env');
-const key = 'APIFY_API_TOKEN=apify_api_6XMcqa0w3QCSo00bXGTV0zUiHPXVW40cnv9O';
+const key = 'APIFY_API_TOKEN=your_apify_api_token_here'; // Set your real token in .env
 
 try {
     let content = '';
