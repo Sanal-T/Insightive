@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { searchRepositories, type RepoSearchState } from '@/app/actions';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { getSourceIcon, getSourceColor } from '@/components/icons';
+import type { Repository } from '@/lib/types';
+
+const SESSION_KEY_RESULTS = 'repo-finder-results';
+const SESSION_KEY_QUERY = 'repo-finder-query';
 
 const initialState: RepoSearchState = {
   repositories: [],
@@ -19,7 +23,28 @@ export default function RepositoryFinderPage() {
   const [state, formAction] = useActionState(searchRepositories, initialState);
   const { toast } = useToast();
 
+  // Persisted display state — survives page navigation
+  const [displayedRepos, setDisplayedRepos] = useState<Repository[]>([]);
+  const [query, setQuery] = useState('');
+
+  // On mount: restore last results from sessionStorage
   useEffect(() => {
+    try {
+      const savedResults = sessionStorage.getItem(SESSION_KEY_RESULTS);
+      const savedQuery = sessionStorage.getItem(SESSION_KEY_QUERY);
+      if (savedResults) setDisplayedRepos(JSON.parse(savedResults));
+      if (savedQuery) setQuery(savedQuery);
+    } catch { }
+  }, []);
+
+  // When server action returns new results: display + persist them
+  useEffect(() => {
+    if (state.repositories.length > 0) {
+      setDisplayedRepos(state.repositories);
+      try {
+        sessionStorage.setItem(SESSION_KEY_RESULTS, JSON.stringify(state.repositories));
+      } catch { }
+    }
     if (state.message && state.message !== 'Search complete.') {
       toast({
         title: 'Repository Search',
@@ -44,6 +69,11 @@ export default function RepositoryFinderPage() {
         <form action={formAction} className="relative">
           <Input
             name="topic"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              try { sessionStorage.setItem(SESSION_KEY_QUERY, e.target.value); } catch { }
+            }}
             placeholder="Search for repositories..."
             className="h-12 text-base pr-16"
             required
@@ -54,9 +84,9 @@ export default function RepositoryFinderPage() {
         </form>
       </div>
 
-      {state.repositories.length > 0 && (
+      {displayedRepos.length > 0 && (
         <div className="w-full max-w-5xl grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {state.repositories.map((repo, index) => {
+          {displayedRepos.map((repo, index) => {
             const SourceIcon = getSourceIcon(repo.source);
             const badgeColor = getSourceColor(repo.source);
             return (
