@@ -1,187 +1,225 @@
-
 'use client';
 
-import { useState } from 'react';
-import { summarizePaper } from '@/app/actions';
+import { useState, useRef, useCallback } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Upload, FileText, Loader2, BookOpen, Lightbulb, Target, GitPullRequest } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import {
+    Upload, Loader2, Sparkles, FileText, RotateCcw, Download
+} from 'lucide-react';
 
-interface PaperSummary {
+// ─── Types ────────────────────────────────────────────────────────
+interface Summary {
     title: string;
-    shortSummary: string;
-    detailedSummary: string;
-    majorFindings: string[];
-    methods: string[];
-    contributions: string[];
+    objective: string;
+    methodology: string;
+    key_findings: string;
+    contributions: string;
+    limitations: string;
+    conclusion: string;
 }
 
-export default function SummarizationPage() {
-    const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const [summary, setSummary] = useState<PaperSummary | null>(null);
-    const { toast } = useToast();
+const BACKEND = 'http://localhost:8000';
 
-    async function handleSubmit(formData: FormData) {
-        const file = formData.get('file');
-        if (!file || !(file instanceof File)) {
-            toast({
-                title: "No file selected",
-                description: "Please upload a PDF or DOCX file.",
-                variant: "destructive"
-            });
+// ─── Section config ───────────────────────────────────────────────
+const SECTIONS: { key: keyof Omit<Summary, 'title'>; label: string; color: string }[] = [
+    { key: 'objective', label: '🎯 Objective', color: 'border-blue-500/40 bg-blue-500/5' },
+    { key: 'methodology', label: '🔬 Methodology', color: 'border-violet-500/40 bg-violet-500/5' },
+    { key: 'key_findings', label: '📊 Key Findings', color: 'border-emerald-500/40 bg-emerald-500/5' },
+    { key: 'contributions', label: '✨ Contributions', color: 'border-amber-500/40 bg-amber-500/5' },
+    { key: 'limitations', label: '⚠️ Limitations', color: 'border-red-500/40 bg-red-500/5' },
+    { key: 'conclusion', label: '🏁 Conclusion', color: 'border-slate-500/40 bg-slate-500/5' },
+];
+
+export default function SummarizationPage() {
+    const { toast } = useToast();
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const [uploading, setUploading] = useState(false);
+    const [summarizing, setSummarizing] = useState(false);
+    const [docId, setDocId] = useState<string | null>(null);
+    const [filename, setFilename] = useState('');
+    const [summary, setSummary] = useState<Summary | null>(null);
+
+    // ── Upload PDF ────────────────────────────────────────────────────
+    const handleFileSelect = useCallback(async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            toast({ title: 'Invalid file', description: 'Only PDF files are supported.', variant: 'destructive' });
             return;
         }
-
-        setIsAnalyzing(true);
+        setUploading(true);
         setSummary(null);
-
+        setDocId(null);
         try {
-            const result = await summarizePaper(formData);
-            if (result) {
-                setSummary(result);
-                toast({ title: "Summarization Complete!", description: `Summarized ${result.title}` });
-            } else {
-                throw new Error("Summarization returned null");
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(`${BACKEND}/ingest`, { method: 'POST', body: formData });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Upload failed');
             }
-        } catch (error) {
-            console.error(error);
-            toast({
-                title: "Summarization Failed",
-                description: "Could not generate summary. Please try again.",
-                variant: "destructive"
-            });
-        } finally {
-            setIsAnalyzing(false);
+            const data = await res.json();
+            setDocId(data.doc_id);
+            setFilename(file.name);
+            toast({ title: '✅ Indexed', description: `${file.name} is ready to summarize.` });
+        } catch (e: any) {
+            toast({ title: 'Upload failed', description: e.message, variant: 'destructive' });
         }
-    }
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    }, [toast]);
+
+    const onDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault();
+        handleFileSelect(e.dataTransfer.files);
+    }, [handleFileSelect]);
+
+    // ── Summarize ─────────────────────────────────────────────────────
+    const handleSummarize = async () => {
+        if (!docId) return;
+        setSummarizing(true);
+        setSummary(null);
+        try {
+            const res = await fetch(`${BACKEND}/summarize`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ doc_id: docId }),
+            });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.detail || 'Summarization failed');
+            }
+            const data: Summary = await res.json();
+            setSummary(data);
+        } catch (e: any) {
+            toast({
+                title: 'Summarization failed',
+                description: e.message + (e.message.includes('fetch') ? '. Is the Python backend running on port 8000?' : ''),
+                variant: 'destructive',
+            });
+        }
+        setSummarizing(false);
+    };
+
+    // ── Export as text ────────────────────────────────────────────────
+    const exportTxt = () => {
+        if (!summary) return;
+        const lines = [
+            `PAPER SUMMARY — ${summary.title}`,
+            '',
+            ...SECTIONS.map(s => `## ${s.label}\n${(summary as any)[s.key]}`),
+        ].join('\n\n');
+        const blob = new Blob([lines], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url;
+        a.download = `${summary.title.slice(0, 40).replace(/\s+/g, '_')}_summary.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
-        <div className="container mx-auto py-8 max-w-5xl px-4">
-            <div className="mb-10 text-center">
-                <h1 className="text-3xl font-bold mb-3 font-headline">Research Summarizer</h1>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
-                    Upload a research paper to get comprehensive summaries, key findings, and methodological insights instantly.
+        <main className="w-full flex-1 flex flex-col items-center px-4 py-12 max-w-5xl mx-auto">
+
+            {/* Header */}
+            <div className="text-center mb-10">
+                <h1 className="text-3xl sm:text-4xl font-bold font-headline text-foreground tracking-tight flex items-center justify-center gap-3">
+                    <Sparkles className="h-9 w-9 text-primary" />
+                    Paper Summarization
+                </h1>
+                <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">
+                    Upload a research paper — the RAG pipeline extracts the most important sections
+                    and <strong>Ollama (gemma3:1b)</strong> generates a structured summary. Fully offline.
                 </p>
             </div>
 
-            <div className="max-w-xl mx-auto mb-16">
-                <Card className="border-dashed border-2 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader>
-                        <CardTitle className="text-lg flex items-center justify-center gap-2">
-                            <Upload className="w-5 h-5 text-primary" />
-                            Upload Paper
-                        </CardTitle>
-                        <CardDescription className="text-center">
-                            Supports .pdf and .docx
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <form action={handleSubmit} className="flex flex-col gap-4">
-                            <Input type="file" name="file" accept=".pdf,.docx" required className="cursor-pointer" />
-                            <Button type="submit" disabled={isAnalyzing} className="w-full" size="lg">
-                                {isAnalyzing ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Generating Summary...
-                                    </>
-                                ) : (
-                                    <>
-                                        <FileText className="mr-2 h-4 w-4" />
-                                        Summarize
-                                    </>
-                                )}
-                            </Button>
-                        </form>
-                    </CardContent>
-                </Card>
+            {/* Upload zone */}
+            <div className="w-full max-w-2xl mb-8">
+                <div
+                    onDrop={onDrop}
+                    onDragOver={e => e.preventDefault()}
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-colors
+            ${docId ? 'border-green-500/50 bg-green-500/5' : 'border-border hover:border-primary hover:bg-primary/5'}`}
+                >
+                    <input ref={fileInputRef} type="file" accept=".pdf" className="hidden"
+                        onChange={e => handleFileSelect(e.target.files)} />
+
+                    {uploading ? (
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-sm">Indexing PDF with RAG…</p>
+                            <p className="text-xs">Building FAISS vector store from document chunks</p>
+                        </div>
+                    ) : docId ? (
+                        <div className="flex flex-col items-center gap-2">
+                            <FileText className="h-8 w-8 text-green-500" />
+                            <p className="text-sm font-medium text-green-600 dark:text-green-400">{filename}</p>
+                            <p className="text-xs text-muted-foreground">Indexed ✓ — Ready to summarize</p>
+                            <button
+                                onClick={e => { e.stopPropagation(); setDocId(null); setFilename(''); setSummary(null); }}
+                                className="mt-1 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+                            >
+                                <RotateCcw className="h-3 w-3" /> Upload different file
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                            <Upload className="h-8 w-8 text-primary" />
+                            <p className="text-sm font-medium">Drop a PDF here or click to browse</p>
+                            <p className="text-xs">RAG will extract key sections before sending to Ollama</p>
+                        </div>
+                    )}
+                </div>
+
+                <Button
+                    onClick={handleSummarize}
+                    disabled={!docId || summarizing}
+                    className="w-full mt-4"
+                    size="lg"
+                >
+                    {summarizing ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Summarizing with gemma3:1b…</>
+                    ) : (
+                        <><Sparkles className="h-4 w-4 mr-2" /> Generate Summary</>
+                    )}
+                </Button>
+
+                {summarizing && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                        RAG is retrieving relevant chunks → gemma3:1b is generating your summary. Takes ~1–2 min.
+                    </p>
+                )}
             </div>
 
+            {/* Summary output */}
             {summary && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                    <div className="text-center border-b pb-6">
-                        <Badge variant="outline" className="mb-2">Analyzed Paper</Badge>
-                        <h2 className="text-2xl font-bold text-foreground">{summary.title}</h2>
+                <div className="w-full space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-xl font-bold line-clamp-2">{summary.title}</h2>
+                        <Button variant="outline" size="sm" onClick={exportTxt}>
+                            <Download className="h-4 w-4 mr-2" /> Export
+                        </Button>
                     </div>
 
-                    <div className="grid md:grid-cols-2 gap-6">
-                        {/* Quick Look */}
-                        <Card className="bg-muted/30">
-                            <CardHeader>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <BookOpen className="w-4 h-4 text-blue-500" />
-                                    Quick Look
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm leading-relaxed">{summary.shortSummary}</p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Detailed Summary */}
-                        <Card className="md:row-span-2">
-                            <CardHeader>
-                                <CardTitle className="text-base flex items-center gap-2">
-                                    <FileText className="w-4 h-4 text-green-500" />
-                                    Detailed Summary
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{summary.detailedSummary}</p>
-                            </CardContent>
-                        </Card>
-
-                        {/* Key Insights Section - Stacked below Quick Look on Desktop */}
-                        <div className="space-y-6">
-
-                            {/* Major Findings */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                    <Lightbulb className="w-4 h-4 text-yellow-500" /> Major Findings
-                                </h3>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-1">
-                                    {summary.majorFindings.map((item, i) => (
-                                        <li key={i}>{item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <Separator />
-
-                            {/* Methods */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                    <Target className="w-4 h-4 text-red-500" /> Methodology
-                                </h3>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-1">
-                                    {summary.methods.map((item, i) => (
-                                        <li key={i}>{item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <Separator />
-
-                            {/* Contributions */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold flex items-center gap-2 text-sm">
-                                    <GitPullRequest className="w-4 h-4 text-purple-500" /> Contributions
-                                </h3>
-                                <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1 ml-1">
-                                    {summary.contributions.map((item, i) => (
-                                        <li key={i}>{item}</li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {SECTIONS.map(({ key, label, color }) => (
+                            <Card key={key} className={`border ${color}`}>
+                                <CardHeader className="pb-2 pt-4 px-4">
+                                    <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="px-4 pb-4">
+                                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
+                                        {(summary as any)[key] || '—'}
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 </div>
             )}
-        </div>
+        </main>
     );
 }
