@@ -2,62 +2,57 @@
 
 import { useState, useEffect, useCallback } from 'react';
 
-export interface ChatHistoryItem {
+const STORAGE_KEY = 'insightive_history';
+const MAX_ENTRIES = 50;
+
+export interface ChatEntry {
     id: string;
-    topic: string;
-    timestamp: number;
+    query: string;
+    timestamp: number; // Unix ms
 }
 
-const STORAGE_KEY = 'insightive_chat_history';
+function loadFromStorage(): ChatEntry[] {
+    try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as ChatEntry[]) : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveToStorage(entries: ChatEntry[]) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch { }
+}
 
 export function useChatHistory() {
-    const [history, setHistory] = useState<ChatHistoryItem[]>([]);
+    const [history, setHistory] = useState<ChatEntry[]>([]);
 
-    // Load history from localStorage on mount
+    // Load on mount (client-only)
     useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setHistory(JSON.parse(stored));
-            } catch (e) {
-                console.error('Failed to parse chat history', e);
-            }
-        }
+        setHistory(loadFromStorage());
     }, []);
 
-    const saveChat = useCallback((topic: string) => {
-        const newItem: ChatHistoryItem = {
-            id: crypto.randomUUID(),
-            topic,
+    const addEntry = useCallback((query: string) => {
+        const trimmed = query.trim();
+        if (!trimmed) return;
+        const entry: ChatEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            query: trimmed,
             timestamp: Date.now(),
         };
-
-        setHistory((prev) => {
-            // Avoid duplicate topics if they were just searched (optional)
-            // For now just add it to the top
-            const updated = [newItem, ...prev].slice(0, 50); // Keep last 50
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-            return updated;
-        });
-    }, []);
-
-    const deleteChat = useCallback((id: string) => {
-        setHistory((prev) => {
-            const updated = prev.filter((item) => item.id !== id);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+        setHistory(prev => {
+            const updated = [entry, ...prev].slice(0, MAX_ENTRIES);
+            saveToStorage(updated);
             return updated;
         });
     }, []);
 
     const clearHistory = useCallback(() => {
         setHistory([]);
-        localStorage.removeItem(STORAGE_KEY);
+        try { localStorage.removeItem(STORAGE_KEY); } catch { }
     }, []);
 
-    return {
-        history,
-        saveChat,
-        deleteChat,
-        clearHistory,
-    };
+    return { history, addEntry, clearHistory };
 }
