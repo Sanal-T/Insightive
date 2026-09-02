@@ -134,8 +134,8 @@ Ensure you have the following installed:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/M-S-Arjun/INSIGHTIVE--Academic-Research-Assistant.git
-cd INSIGHTIVE--Academic-Research-Assistant
+git clone https://github.com/Sanal-T/Insightive.git
+cd Insightive
 ```
 
 ### 2. Set Up Environment Variables
