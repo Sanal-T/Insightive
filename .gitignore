@@ -43,3 +43,22 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+
+# python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# logs & generated files
+*.log
+*.txt
+genkit-log.txt
+summarizer-error.log
+verification-log.txt
+verify_output.txt
+models.log
+models.json
+
+# misc generated
+.modified
